@@ -32,7 +32,7 @@ def fetch_bike_data():
         for station in data:
             print(f"Processing Station {station.get('number', 'N/A')} - Bikes: {station.get('available_bikes', 'N/A')}")
 
-            db.insert_bike_data(
+            db.insert_bike_data_bulk(
                 station_id=station["number"],
                 available_bikes=station["available_bikes"],
                 available_stands=station["available_bike_stands"],
