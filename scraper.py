@@ -20,17 +20,17 @@ def fetch_bike_data():
     try:
         response = requests.get(JCDECAUX_URL, params={"apiKey": JCDECAUX_API_KEY, "contract": CONTRACT_NAME})
         
-        # ✅ Debugging - Print response before parsing
-        print("🚲 Raw Bike API Response:", response.status_code, response.text)
+        # Debugging - Print response before parsing
+        print("Raw Bike API Response:", response.status_code, response.text)
         
         data = response.json()  # This is where it likely fails
 
         if not isinstance(data, list):
-            print("❌ Unexpected API response format:", data)
+            print("Unexpected API response format:", data)
             return  # Exit function if response isn't a list
 
         for station in data:
-            print(f"📍 Processing Station {station.get('number', 'N/A')} - Bikes: {station.get('available_bikes', 'N/A')}")
+            print(f"Processing Station {station.get('number', 'N/A')} - Bikes: {station.get('available_bikes', 'N/A')}")
 
             db.insert_bike_data(
                 station_id=station["number"],
@@ -40,14 +40,14 @@ def fetch_bike_data():
                 status=station["status"]
             )
 
-        print("✅ Bike data updated for all stations.")
+        print("Bike data updated for all stations.")
 
     except requests.exceptions.RequestException as e:
-        print("❌ API Request Error:", e)
+        print("API Request Error:", e)
     except ValueError as e:
-        print("❌ JSON Decode Error:", e, "| Raw Response:", response.text)
+        print("JSON Decode Error:", e, "| Raw Response:", response.text)
     except KeyError as e:
-        print("❌ Missing Expected Key in API Response:", e)
+        print("Missing Expected Key in API Response:", e)
 
 
 def fetch_weather_data():
