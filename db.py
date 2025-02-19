@@ -47,8 +47,17 @@ def insert_bike_data_bulk(stations):
             print(f"⚠️ ERROR: Failed to insert bike data for station {formatted_station['number']}:", response.text)
 
 def insert_weather_data(city, temperature, humidity, description, timestamp):
-    """Insert weather data into Supabase, handling empty responses."""
+    """Insert weather data into Supabase, handling empty responses and preventing duplicates."""
     url = f"{SUPABASE_URL}/rest/v1/weather"
+    
+    # Check for existing record with same timestamp
+    check_url = f"{SUPABASE_URL}/rest/v1/weather?timestamp=eq.{timestamp}&select=id"
+    check_response = requests.get(check_url, headers=HEADERS)
+    
+    if check_response.status_code == 200 and check_response.json():
+        print(f"Skipping duplicate weather record for {city} at {timestamp}")
+        return
+    
     data = {
         "city": city,
         "temperature": temperature,
@@ -59,11 +68,13 @@ def insert_weather_data(city, temperature, humidity, description, timestamp):
     
     try:
         response = requests.post(url, json=data, headers=HEADERS)
-        response.raise_for_status()  # Raise an exception for bad status codes
+        response.raise_for_status()
         
-        response_data = response.json() if response.text else {}
-        print(f"Successfully inserted weather data for {city}")
-        print("Weather Data Insert Response:", response.status_code, response_data)
+        if response.status_code == 201:
+            print(f"Successfully inserted weather data for {city} at {timestamp}")
+        else:
+            print(f"⚠️ ERROR: Failed to insert weather data: {response.text}")
+            
     except requests.exceptions.RequestException as e:
         print(f"⚠️ ERROR: Failed to insert weather data: {str(e)}")
     except ValueError as e:
