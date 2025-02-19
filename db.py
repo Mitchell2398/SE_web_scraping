@@ -17,6 +17,9 @@ def insert_bike_data_bulk(stations):
     """Bulk insert bike data into Supabase while preventing duplicates."""
     url = f"{SUPABASE_URL}/rest/v1/availability"
 
+    if not isinstance(stations, list):
+        stations = [stations]
+
     for station in stations:
         # First, check if the record already exists
         check_url = f"{SUPABASE_URL}/rest/v1/availability?number=eq.{station['number']}&last_update=eq.{station['last_update']}&select=number"
@@ -26,7 +29,7 @@ def insert_bike_data_bulk(stations):
             print(f"Skipping duplicate: Station {station['number']} at {station['last_update']}")
             continue  # Skip if it already exists
 
-        #Insert only if no duplicate found
+        # Insert only if no duplicate found
         response = requests.post(url, json=station, headers=HEADERS)
         print("Bike Data Insert Response:", response.status_code, response.text)
 

@@ -1,7 +1,7 @@
 import os
 import requests
 from dotenv import load_dotenv
-from datetime import datetime
+from datetime import datetime, timezone
 import db
 
 load_dotenv()
@@ -23,23 +23,31 @@ def fetch_bike_data():
         # Debugging - Print response before parsing
         print("Raw Bike API Response:", response.status_code, response.text)
         
-        data = response.json()  # This is where it likely fails
+        data = response.json()
 
         if not isinstance(data, list):
             print("Unexpected API response format:", data)
-            return  # Exit function if response isn't a list
+            return
 
+        stations_data = []
         for station in data:
             print(f"Processing Station {station.get('number', 'N/A')} - Bikes: {station.get('available_bikes', 'N/A')}")
+            
+            # Prepare station data in the correct format
+            station_data = {
+                'number': station['number'],
+                'available_bikes': station['available_bikes'],
+                'available_stands': station['available_bike_stands'],
+                'last_update': datetime.fromtimestamp(
+                    station['last_update'] / 1000,
+                    tz=timezone.utc
+                ).isoformat(),
+                'status': station['status']
+            }
+            stations_data.append(station_data)
 
-            db.insert_bike_data_bulk(
-                station_id=station["number"],
-                available_bikes=station["available_bikes"],
-                available_stands=station["available_bike_stands"],
-                last_update=datetime.utcfromtimestamp(station["last_update"] / 1000).isoformat(),
-                status=station["status"]
-            )
-
+        # Send all stations data at once
+        db.insert_bike_data_bulk(stations_data)
         print("Bike data updated for all stations.")
 
     except requests.exceptions.RequestException as e:
