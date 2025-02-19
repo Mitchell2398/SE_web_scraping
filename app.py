@@ -7,7 +7,7 @@ app = Flask(__name__)
 
 # Scheduler for periodic scraping
 scheduler = BackgroundScheduler()
-scheduler.add_job(scraper.fetch_bike_data, 'interval', minutes=5)
+scheduler.add_job(scraper.fetch_bike_data, 'interval', minutes=20)
 scheduler.add_job(scraper.fetch_weather_data, 'interval', hours=1)
 scheduler.start()
 
