@@ -52,7 +52,6 @@ def insert_weather_data(city, temperature, humidity, description, timestamp):
     """Insert weather data into Supabase, handling empty responses and preventing duplicates."""
     url = f"{SUPABASE_URL}/rest/v1/weather"
     
-    # Format timestamp to ensure consistent format with database
     try:
         # Parse the timestamp if it's a string
         if isinstance(timestamp, str):
@@ -61,18 +60,22 @@ def insert_weather_data(city, temperature, humidity, description, timestamp):
             parsed_timestamp = timestamp
         
         # Format to match PostgreSQL timestamptz format
-        formatted_timestamp = parsed_timestamp.astimezone(timezone.utc).isoformat()
+        formatted_timestamp = parsed_timestamp.astimezone(timezone.utc)
+        
+        # Create start and end of minute for range check
+        minute_start = formatted_timestamp.replace(second=0, microsecond=0)
+        minute_end = formatted_timestamp.replace(second=59, microsecond=999999)
         
         # Check for existing record within the same minute
         check_url = f"{SUPABASE_URL}/rest/v1/weather"
         params = {
-            "timestamp": f"gte.{formatted_timestamp[:17]}",  # Match up to minutes
+            "timestamp": f"gte.{minute_start.isoformat()},lte.{minute_end.isoformat()}",
             "city": f"eq.{city}"
         }
         check_response = requests.get(check_url, headers=HEADERS, params=params)
         
         if check_response.status_code == 200 and check_response.json():
-            print(f"Skipping duplicate weather record for {city} at {formatted_timestamp}")
+            print(f"Skipping duplicate weather record for {city} at {formatted_timestamp.isoformat()}")
             return
         
         data = {
@@ -80,14 +83,14 @@ def insert_weather_data(city, temperature, humidity, description, timestamp):
             "temperature": temperature,
             "humidity": humidity,
             "weather_description": description,
-            "timestamp": formatted_timestamp
+            "timestamp": formatted_timestamp.isoformat()
         }
         
         response = requests.post(url, json=data, headers=HEADERS)
         response.raise_for_status()
         
         if response.status_code == 201:
-            print(f"Successfully inserted weather data for {city} at {formatted_timestamp}")
+            print(f"Successfully inserted weather data for {city} at {formatted_timestamp.isoformat()}")
         else:
             print(f"⚠️ ERROR: Failed to insert weather data: {response.text}")
             
