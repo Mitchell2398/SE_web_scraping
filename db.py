@@ -1,6 +1,7 @@
 import os
 import requests
 from dotenv import load_dotenv
+from datetime import datetime, timezone
 
 load_dotenv()
 
@@ -46,39 +47,51 @@ def insert_bike_data_bulk(stations):
         else:
             print(f"⚠️ ERROR: Failed to insert bike data for station {formatted_station['number']}:", response.text)
 
+
 def insert_weather_data(city, temperature, humidity, description, timestamp):
     """Insert weather data into Supabase, handling empty responses and preventing duplicates."""
     url = f"{SUPABASE_URL}/rest/v1/weather"
     
-    # Check for existing record with same timestamp
-    check_url = f"{SUPABASE_URL}/rest/v1/weather?timestamp=eq.{timestamp}&select=id"
-    check_response = requests.get(check_url, headers=HEADERS)
-    
-    if check_response.status_code == 200 and check_response.json():
-        print(f"Skipping duplicate weather record for {city} at {timestamp}")
-        return
-    
-    data = {
-        "city": city,
-        "temperature": temperature,
-        "humidity": humidity,
-        "weather_description": description,
-        "timestamp": timestamp
-    }
-    
+    # Format timestamp to ensure consistent format with database
     try:
+        # Parse the timestamp if it's a string
+        if isinstance(timestamp, str):
+            parsed_timestamp = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+        else:
+            parsed_timestamp = timestamp
+        
+        # Format to match PostgreSQL timestamptz format
+        formatted_timestamp = parsed_timestamp.astimezone(timezone.utc).isoformat()
+        
+        # Check for existing record within the same minute
+        check_url = f"{SUPABASE_URL}/rest/v1/weather"
+        params = {
+            "timestamp": f"gte.{formatted_timestamp[:17]}",  # Match up to minutes
+            "city": f"eq.{city}"
+        }
+        check_response = requests.get(check_url, headers=HEADERS, params=params)
+        
+        if check_response.status_code == 200 and check_response.json():
+            print(f"Skipping duplicate weather record for {city} at {formatted_timestamp}")
+            return
+        
+        data = {
+            "city": city,
+            "temperature": temperature,
+            "humidity": humidity,
+            "weather_description": description,
+            "timestamp": formatted_timestamp
+        }
+        
         response = requests.post(url, json=data, headers=HEADERS)
         response.raise_for_status()
         
         if response.status_code == 201:
-            print(f"Successfully inserted weather data for {city} at {timestamp}")
+            print(f"Successfully inserted weather data for {city} at {formatted_timestamp}")
         else:
             print(f"⚠️ ERROR: Failed to insert weather data: {response.text}")
             
     except requests.exceptions.RequestException as e:
         print(f"⚠️ ERROR: Failed to insert weather data: {str(e)}")
     except ValueError as e:
-        if response.status_code == 201:
-            print("Weather data inserted successfully (empty response)")
-        else:
-            print(f"⚠️ ERROR: Invalid response format: {str(e)}")
+        print(f"⚠️ ERROR: Invalid timestamp format: {str(e)}")
